@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+.npm
+
+# Build output
+dist/
+dist-ssr/
+build/
+
+# Android build output
+android/app/build/
+android/.gradle/
+
+# Environment files — NEVER commit these!
+.env
+.env.local
+.env.*.local
+.env.production
+
+# Netlify
+.netlify/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# TypeScript cache
+*.tsbuildinfo
+
+# OS
+Thumbs.db

@@ -1,0 +1,216 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@theme {
+  /* ── Light Mode Tokens ── */
+  --color-inverse-primary: #afd0a1;
+  --color-outline: #73796f;
+  --color-on-error: #ffffff;
+  --color-on-primary-fixed: #062104;
+  --color-tertiary-container: #586258;
+  --color-inverse-surface: #2f312e;
+  --color-error-container: #ffdad6;
+  --color-tertiary-fixed: #dbe6d8;
+  --color-inverse-on-surface: #f1f1ec;
+  --color-on-secondary-fixed: #092009;
+  --color-tertiary-fixed-dim: #bfc9bd;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #cdebc5;
+  --color-on-tertiary-fixed-variant: #3f4940;
+  --color-on-tertiary-container: #d2ddd0;
+  --color-surface-tint: #496640;
+  --color-surface: #fafaf4;
+  --color-error: #ba1a1a;
+  --color-surface-container: #eeeee9;
+  --color-primary: #334f2b;
+  --color-surface-variant: #e3e3de;
+  --color-secondary-fixed-dim: #b1cfaa;
+  --color-on-secondary-fixed-variant: #344d31;
+  --color-surface-dim: #dadad5;
+  --color-on-primary: #ffffff;
+  --color-on-error-container: #93000a;
+  --color-surface-container-highest: #e3e3de;
+  --color-secondary: #4b6547;
+  --color-primary-container: #4a6741;
+  --color-surface-bright: #fafaf4;
+  --color-primary-fixed-dim: #afd0a1;
+  --color-on-surface-variant: #434840;
+  --color-on-primary-fixed-variant: #324e2a;
+  --color-primary-fixed: #caecbc;
+  --color-on-primary-container: #c2e4b4;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-high: #e8e8e3;
+  --color-on-tertiary: #ffffff;
+  --color-on-surface: #1a1c19;
+  --color-tertiary: #404a41;
+  --color-on-secondary-container: #516b4d;
+  --color-secondary-fixed: #cdebc5;
+  --color-background: #fafaf4;
+  --color-surface-container-low: #f4f4ee;
+  --color-outline-variant: #c3c8bd;
+  --color-on-tertiary-fixed: #141e16;
+  --color-on-background: #1a1c19;
+
+  --radius-sm: 0.25rem;
+  --radius-DEFAULT: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-full: 9999px;
+
+  --spacing-gutter: 20px;
+  --spacing-section-gap: 48px;
+  --spacing-container-padding-mobile: 20px;
+  --spacing-container-padding-desktop: 40px;
+  --spacing-unit: 8px;
+
+  --font-title-md: 'Inter', sans-serif;
+  --font-label-sm: 'Inter', sans-serif;
+  --font-headline-lg-mobile: 'Inter', sans-serif;
+  --font-body-md: 'Inter', sans-serif;
+  --font-display: 'Inter', sans-serif;
+  --font-headline-lg: 'Inter', sans-serif;
+}
+
+@layer base {
+  :root {
+    color-scheme: light dark;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --color-background: #121412;
+      --color-surface: #1a1c19;
+      --color-surface-dim: #121412;
+      --color-surface-bright: #383a36;
+      --color-surface-container-lowest: #0d0f0c;
+      --color-surface-container-low: #1a1c19;
+      --color-surface-container: #1e201d;
+      --color-surface-container-high: #282b27;
+      --color-surface-container-highest: #333531;
+      --color-surface-variant: #424940;
+      --color-on-surface: #e2e3de;
+      --color-on-surface-variant: #c2c9bd;
+      --color-on-background: #e2e3de;
+      --color-outline: #8c9389;
+      --color-outline-variant: #424940;
+      --color-primary: #afd0a1;
+      --color-on-primary: #1a361a;
+      --color-primary-container: #304d28;
+      --color-on-primary-container: #c2e4b4;
+      --color-primary-fixed: #caecbc;
+      --color-primary-fixed-dim: #afd0a1;
+      --color-secondary: #b1cfaa;
+      --color-on-secondary: #1e361c;
+      --color-secondary-container: #344d31;
+      --color-on-secondary-container: #cdebc5;
+      --color-tertiary: #bfc9bd;
+      --color-on-tertiary: #2a332c;
+      --color-tertiary-container: #404a41;
+      --color-on-tertiary-container: #dbe6d8;
+      --color-error: #ffb4ab;
+      --color-on-error: #690005;
+      --color-error-container: #93000a;
+      --color-on-error-container: #ffdad6;
+      --color-inverse-surface: #e2e3de;
+      --color-inverse-on-surface: #2f312e;
+      --color-inverse-primary: #4a6741;
+    }
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--color-background);
+    color: var(--color-on-background);
+    overscroll-behavior: none;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-outline-variant);
+    border-radius: 9999px;
+  }
+
+  input, select, textarea {
+    color: var(--color-on-surface);
+    background-color: var(--color-surface-container);
+  }
+  
+  input::placeholder, textarea::placeholder {
+    color: var(--color-outline);
+  }
+}
+
+@layer utilities {
+  .glass-effect {
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 16px);
+  }
+
+  /* Shimmer animation for loading skeletons */
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  .animate-shimmer {
+    background: linear-gradient(
+      90deg,
+      var(--color-surface-container) 25%,
+      var(--color-surface-container-high) 50%,
+      var(--color-surface-container) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  /* Slide in from bottom */
+  @keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out both;
+  }
+
+  /* Fade in */
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.25s ease-out both;
+  }
+
+  /* Pulse for AI loading */
+  @keyframes aiPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .animate-ai-pulse {
+    animation: aiPulse 1.5s ease-in-out infinite;
+  }
+}
