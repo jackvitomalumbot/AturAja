@@ -106,7 +106,6 @@ export const History: React.FC = () => {
             style={{
               backgroundColor: 'var(--color-surface-container)',
               color: 'var(--color-on-surface)',
-              focusRingColor: 'var(--color-primary)',
             }}
           />
           {searchTerm && (

@@ -4,10 +4,10 @@ import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from 'recharts';
-import { format, parseISO, startOfMonth, eachDayOfInterval, endOfMonth, isThisMonth, subMonths } from 'date-fns';
+import { format, startOfMonth, eachDayOfInterval, endOfMonth, subMonths } from 'date-fns';
 import { id } from 'date-fns/locale';
 import type { AIInsightData } from '../types';
-import { CATEGORY_ICONS, CATEGORY_COLORS } from '../types';
+import { CATEGORY_ICONS } from '../types';
 
 const CHART_COLORS = ['#334f2b', '#4b6547', '#4a6741', '#73796f', '#afd0a1', '#cdebc5', '#bfc9bd'];
 
@@ -222,7 +222,7 @@ export const Stats: React.FC = () => {
                   <XAxis dataKey="day" tick={{ fontSize: 10, fill: 'var(--color-outline)' }} interval={4} />
                   <YAxis tick={{ fontSize: 10, fill: 'var(--color-outline)' }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
                   <Tooltip
-                    formatter={(v: number) => [`Rp${v.toLocaleString('id-ID')}`, 'Pengeluaran']}
+                    formatter={(v) => [`Rp${Number(v).toLocaleString('id-ID')}`, 'Pengeluaran']}
                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', backgroundColor: 'var(--color-surface-container-lowest)', color: 'var(--color-on-surface)' }}
                   />
                   <Bar dataKey="total" fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
@@ -300,7 +300,7 @@ export const Stats: React.FC = () => {
                     ))}
                   </Pie>
                   <Tooltip
-                    formatter={(v: number) => [`Rp${v.toLocaleString('id-ID')}`, 'Total']}
+                    formatter={(v) => [`Rp${Number(v).toLocaleString('id-ID')}`, 'Total']}
                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', backgroundColor: 'var(--color-surface-container-lowest)', color: 'var(--color-on-surface)' }}
                   />
                 </PieChart>
