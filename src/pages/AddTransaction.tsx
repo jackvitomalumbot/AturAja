@@ -51,6 +51,9 @@ export const AddTransaction: React.FC = () => {
     setTimeout(() => { setSuccessMsg(''); navigate('/'); }, 1500);
   };
 
+  // Normalize time to HH:MM:SS as required by PostgreSQL time column
+  const normalizeTime = (t: string) => t.length === 5 ? `${t}:00` : t;
+
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || Number(amount) <= 0) { setErrorMsg('Nominal harus diisi dan lebih dari 0'); return; }
@@ -63,7 +66,7 @@ export const AddTransaction: React.FC = () => {
     setSubmitting(true);
     const ok = await addTransaction({
       amount: Number(amount), merchant: merchant.trim(), category,
-      date, time, note: note.trim(), source: 'MANUAL', image_url: null,
+      date, time: normalizeTime(time), note: note.trim(), source: 'MANUAL', image_url: null,
     });
     setSubmitting(false);
     if (ok) { resetManualForm(); showSuccess('Transaksi berhasil disimpan!'); }
@@ -137,7 +140,7 @@ export const AddTransaction: React.FC = () => {
     setSubmitting(true);
     const ok = await addTransaction({
       amount: aiResult.amount, merchant: aiResult.merchant, category: aiResult.category,
-      date: aiResult.date, time: aiResult.time, note: aiResult.note ?? '',
+      date: aiResult.date, time: normalizeTime(aiResult.time), note: aiResult.note ?? '',
       source: 'AI', image_url: imageBase64 ?? null,
     });
     setSubmitting(false);
