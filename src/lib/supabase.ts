@@ -22,6 +22,7 @@ export const transactionService = {
   },
 
   async addTransaction(transaction: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>): Promise<Transaction | null> {
+    console.log('[Supabase] INSERT payload:', JSON.stringify(transaction));
     const { data, error } = await supabase
       .from('transactions')
       .insert([transaction])
@@ -29,9 +30,10 @@ export const transactionService = {
       .single();
 
     if (error) {
-      console.error('Error adding transaction:', error);
+      console.error('[Supabase] INSERT error:', error.code, error.message, error.details, error.hint);
       return null;
     }
+    console.log('[Supabase] INSERT success:', data);
     return data;
   },
 

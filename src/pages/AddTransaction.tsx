@@ -70,7 +70,7 @@ export const AddTransaction: React.FC = () => {
     });
     setSubmitting(false);
     if (ok) { resetManualForm(); showSuccess('Transaksi berhasil disimpan!'); }
-    else { setErrorMsg('Gagal menyimpan transaksi. Periksa koneksi Supabase.'); }
+    else { setErrorMsg('Gagal menyimpan. Buka Console browser (F12 → Console) untuk melihat error detail.'); }
   };
 
   // Compress image to max 900px and quality 0.75 to stay under Netlify 1MB body limit
