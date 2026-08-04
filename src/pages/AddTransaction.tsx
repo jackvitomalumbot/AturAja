@@ -70,18 +70,36 @@ export const AddTransaction: React.FC = () => {
     else { setErrorMsg('Gagal menyimpan transaksi. Periksa koneksi Supabase.'); }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Compress image to max 900px and quality 0.75 to stay under Netlify 1MB body limit
+  const compressImage = (file: File): Promise<{ base64: string; mimeType: string }> =>
+    new Promise((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const MAX = 900;
+        let { width, height } = img;
+        if (width > MAX || height > MAX) {
+          if (width > height) { height = Math.round((height * MAX) / width); width = MAX; }
+          else { width = Math.round((width * MAX) / height); height = MAX; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
+        const base64 = canvas.toDataURL('image/jpeg', 0.75);
+        URL.revokeObjectURL(url);
+        resolve({ base64, mimeType: 'image/jpeg' });
+      };
+      img.src = url;
+    });
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setAiResult(null); setAiError('');
-    setImageMimeType(file.type || 'image/jpeg');
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64 = reader.result as string;
-      setImagePreview(base64);
-      setImageBase64(base64);
-    };
-    reader.readAsDataURL(file);
+    const { base64, mimeType } = await compressImage(file);
+    setImageMimeType(mimeType);
+    setImagePreview(base64);
+    setImageBase64(base64);
   };
 
   const handleScanAI = async () => {
@@ -93,11 +111,16 @@ export const AddTransaction: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageBase64, mimeType: imageMimeType }),
       });
-      if (!res.ok) throw new Error('Gagal membaca struk');
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody?.error || `HTTP ${res.status}`);
+      }
       const data: AIResult = await res.json();
+      if (!data.amount && !data.merchant) throw new Error('AI tidak dapat membaca struk ini');
       setAiResult(data);
-    } catch {
-      setAiError('AI gagal membaca gambar. Coba gambar yang lebih jelas atau gunakan input manual.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Gagal membaca struk';
+      setAiError(`AI Scan gagal: ${msg}. Coba gambar yang lebih jelas atau input manual.`);
     } finally {
       setAiLoading(false);
     }
