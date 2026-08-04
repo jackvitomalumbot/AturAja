@@ -5,6 +5,9 @@ import { isToday, isThisWeek, isThisMonth, parseISO } from 'date-fns';
 import type { AIInsightData } from '../types';
 import { CATEGORY_ICONS, CATEGORY_COLORS } from '../types';
 
+// Gunakan URL absolut untuk APK Android, fallback ke relative path untuk dev
+const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || '';
+
 const MONTHLY_BUDGET = 6_500_000;
 
 function CategoryIcon({ category, size = 20 }: { category: string; size?: number }) {
@@ -22,6 +25,7 @@ export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [aiInsight, setAiInsight] = useState<AIInsightData | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   const todayTransactions = useMemo(() =>
     transactions.filter(tx => isToday(parseISO(tx.date))), [transactions]);
@@ -65,17 +69,24 @@ export const Dashboard: React.FC = () => {
   const fetchInsights = useCallback(async () => {
     if (transactions.length === 0) return;
     setAiLoading(true);
+    setAiError(null);
     try {
-      const res = await fetch('/.netlify/functions/ai-insights', {
+      const res = await fetch(`${API_BASE}/.netlify/functions/ai-insights`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ transactions: transactions.slice(0, 100) }),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        let detail = `HTTP ${res.status}`;
+        try { const e = await res.json(); detail = e?.error || e?.details || detail; } catch { /* ignore */ }
+        throw new Error(detail);
+      }
       const data: AIInsightData = await res.json();
       setAiInsight(data);
-    } catch {
-      // silently fail — insight panel just won't show
+      setAiError(null);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Gagal terhubung ke AI';
+      setAiError(msg);
     } finally {
       setAiLoading(false);
     }
@@ -228,11 +239,24 @@ export const Dashboard: React.FC = () => {
         {/* ── AI Financial Insight ── */}
         {transactions.length > 0 && (
           <section className="space-y-3">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[18px]" style={{ color: 'var(--color-primary)', fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
-              <h2 className="text-[15px] font-semibold" style={{ color: 'var(--color-on-surface)' }}>AI Insight</h2>
-              {aiLoading && (
-                <span className="text-[11px] font-medium animate-ai-pulse" style={{ color: 'var(--color-outline)' }}>Menganalisis...</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[18px]" style={{ color: 'var(--color-primary)', fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
+                <h2 className="text-[15px] font-semibold" style={{ color: 'var(--color-on-surface)' }}>AI Financial Check</h2>
+                {aiLoading && (
+                  <span className="text-[11px] font-medium animate-ai-pulse" style={{ color: 'var(--color-outline)' }}>Menganalisis...</span>
+                )}
+              </div>
+              {/* Tombol refresh selalu terlihat */}
+              {!aiLoading && (
+                <button
+                  onClick={fetchInsights}
+                  className="flex items-center gap-1 text-[12px] font-medium px-3 py-1.5 rounded-full transition-colors active:scale-95"
+                  style={{ backgroundColor: 'var(--color-surface-container)', color: 'var(--color-primary)' }}
+                >
+                  <span className="material-symbols-outlined text-[14px]">refresh</span>
+                  {aiInsight ? 'Perbarui' : 'Analisis'}
+                </button>
               )}
             </div>
 
@@ -242,6 +266,31 @@ export const Dashboard: React.FC = () => {
                 <div className="h-3 rounded-full animate-shimmer w-3/4" />
                 <div className="h-3 rounded-full animate-shimmer w-full" />
                 <div className="h-3 rounded-full animate-shimmer w-5/6" />
+                <div className="h-3 rounded-full animate-shimmer w-2/3" />
+              </div>
+            ) : aiError ? (
+              /* Error state — tampilkan ke user */
+              <div
+                className="rounded-[20px] p-4 border space-y-3"
+                style={{ backgroundColor: 'var(--color-error-container)', borderColor: 'var(--color-error)' }}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[18px]" style={{ color: 'var(--color-error)' }}>error_outline</span>
+                  <p className="text-[13px] font-semibold" style={{ color: 'var(--color-on-error-container)' }}>AI Check gagal</p>
+                </div>
+                <p className="text-[11px] leading-relaxed" style={{ color: 'var(--color-on-error-container)', opacity: 0.8 }}>
+                  {aiError.includes('fetch') || aiError.includes('Failed') || aiError.includes('NetworkError')
+                    ? 'Tidak dapat terhubung ke server AI. Pastikan ada koneksi internet dan coba lagi.'
+                    : aiError}
+                </p>
+                <button
+                  onClick={fetchInsights}
+                  className="flex items-center gap-1 text-[12px] font-semibold px-3 py-1.5 rounded-lg transition-colors active:scale-95"
+                  style={{ backgroundColor: 'var(--color-error)', color: 'white' }}
+                >
+                  <span className="material-symbols-outlined text-[14px]">refresh</span>
+                  Coba Lagi
+                </button>
               </div>
             ) : aiInsight ? (
               <div
@@ -283,17 +332,18 @@ export const Dashboard: React.FC = () => {
                     </p>
                   </div>
                 )}
-
-                <button
-                  onClick={fetchInsights}
-                  className="flex items-center gap-1 text-[12px] font-medium transition-colors"
-                  style={{ color: 'var(--color-primary)' }}
-                >
-                  <span className="material-symbols-outlined text-[14px]">refresh</span>
-                  Perbarui insight
-                </button>
               </div>
-            ) : null}
+            ) : (
+              /* Belum ada insight — tampilkan prompt untuk mulai */
+              <div
+                className="rounded-[20px] p-5 border border-dashed text-center space-y-2"
+                style={{ backgroundColor: 'var(--color-surface-container-lowest)', borderColor: 'var(--color-outline-variant)' }}
+              >
+                <span className="material-symbols-outlined text-[32px] block" style={{ color: 'var(--color-outline)', fontVariationSettings: "'FILL' 1" }}>psychology</span>
+                <p className="text-[13px] font-medium" style={{ color: 'var(--color-on-surface)' }}>Analisis Keuangan AI</p>
+                <p className="text-[11px]" style={{ color: 'var(--color-outline)' }}>Ketuk tombol "Analisis" untuk mendapatkan insight pengeluaranmu</p>
+              </div>
+            )}
           </section>
         )}
 

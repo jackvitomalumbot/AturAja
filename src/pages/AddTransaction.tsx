@@ -4,6 +4,9 @@ import { useTransactions } from '../context/TransactionContext';
 import { format } from 'date-fns';
 import { CATEGORIES } from '../types';
 
+// Gunakan URL absolut untuk APK Android, fallback ke relative path untuk dev (Netlify dev proxy)
+const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || '';
+
 interface AIResult {
   merchant: string | null;
   amount: number | null;
@@ -40,6 +43,7 @@ export const AddTransaction: React.FC = () => {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const resetManualForm = () => {
     setAmount(''); setMerchant(''); setCategory('');
@@ -52,7 +56,10 @@ export const AddTransaction: React.FC = () => {
   };
 
   // Normalize time to HH:MM:SS as required by PostgreSQL time column
-  const normalizeTime = (t: string) => t.length === 5 ? `${t}:00` : t;
+  const normalizeTime = (t: string | null): string => {
+    if (!t) return format(new Date(), 'HH:mm:ss');
+    return t.length === 5 ? `${t}:00` : t;
+  };
 
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,53 +80,107 @@ export const AddTransaction: React.FC = () => {
     else { setErrorMsg('Gagal menyimpan. Buka Console browser (F12 → Console) untuk melihat error detail.'); }
   };
 
-  // Compress image to max 900px and quality 0.75 to stay under Netlify 1MB body limit
+  /**
+   * Kompresi gambar dengan iterasi — target akhir <700KB agar aman untuk Netlify 1MB limit.
+   * Mulai dari max 800px quality 0.65, turunkan sampai target tercapai.
+   */
   const compressImage = (file: File): Promise<{ base64: string; mimeType: string }> =>
     new Promise((resolve) => {
       const img = new Image();
       const url = URL.createObjectURL(file);
       img.onload = () => {
-        const MAX = 900;
-        let { width, height } = img;
-        if (width > MAX || height > MAX) {
-          if (width > height) { height = Math.round((height * MAX) / width); width = MAX; }
-          else { width = Math.round((width * MAX) / height); height = MAX; }
+        const TARGET_KB = 700;
+        let maxDim = 800;
+        let quality = 0.65;
+
+        const tryCompress = (): string => {
+          let { width, height } = img;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) { height = Math.round((height * maxDim) / width); width = maxDim; }
+            else { width = Math.round((width * maxDim) / height); height = maxDim; }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width; canvas.height = height;
+          canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
+          return canvas.toDataURL('image/jpeg', quality);
+        };
+
+        let base64 = tryCompress();
+        let sizeKB = Math.round((base64.length * 3) / 4 / 1024);
+
+        // Iterasi kompresi jika masih terlalu besar
+        while (sizeKB > TARGET_KB && (maxDim > 400 || quality > 0.3)) {
+          if (quality > 0.3) quality = Math.max(0.3, quality - 0.1);
+          else maxDim = Math.max(400, maxDim - 100);
+          base64 = tryCompress();
+          sizeKB = Math.round((base64.length * 3) / 4 / 1024);
         }
-        const canvas = document.createElement('canvas');
-        canvas.width = width; canvas.height = height;
-        canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
-        const base64 = canvas.toDataURL('image/jpeg', 0.75);
+
         URL.revokeObjectURL(url);
         resolve({ base64, mimeType: 'image/jpeg' });
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        // Fallback: baca file as-is sebagai base64
+        const reader = new FileReader();
+        reader.onload = () => resolve({ base64: reader.result as string, mimeType: file.type || 'image/jpeg' });
+        reader.readAsDataURL(file);
       };
       img.src = url;
     });
 
+  const processFile = async (file: File) => {
+    setAiResult(null); setAiError('');
+    try {
+      const { base64, mimeType } = await compressImage(file);
+      setImageMimeType(mimeType);
+      setImagePreview(base64);
+      setImageBase64(base64);
+    } catch {
+      setAiError('Gagal memuat gambar. Coba pilih gambar lain.');
+    }
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setAiResult(null); setAiError('');
-    const { base64, mimeType } = await compressImage(file);
-    setImageMimeType(mimeType);
-    setImagePreview(base64);
-    setImageBase64(base64);
+    await processFile(file);
+    // Reset input agar file yang sama bisa dipilih ulang
+    e.target.value = '';
   };
 
   const handleScanAI = async () => {
     if (!imageBase64) return;
     setAiLoading(true); setAiError(''); setAiResult(null);
+
+    // Estimasi ukuran sebelum kirim
+    const sizeKB = Math.round((imageBase64.length * 3) / 4 / 1024);
+    if (sizeKB > 900) {
+      setAiError(`Gambar masih terlalu besar (${sizeKB}KB). Coba pilih gambar yang lebih kecil.`);
+      setAiLoading(false);
+      return;
+    }
+
     try {
-      const res = await fetch('/.netlify/functions/scan-receipt', {
+      const res = await fetch(`${API_BASE}/.netlify/functions/scan-receipt`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageBase64, mimeType: imageMimeType }),
       });
+
+      let errDetail = '';
       if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        throw new Error(errBody?.error || `HTTP ${res.status}`);
+        try {
+          const errBody = await res.json();
+          errDetail = errBody?.error || errBody?.details || `HTTP ${res.status}`;
+        } catch {
+          errDetail = `HTTP ${res.status}`;
+        }
+        throw new Error(errDetail);
       }
+
       const data: AIResult = await res.json();
-      if (!data.amount && !data.merchant) throw new Error('AI tidak dapat membaca struk ini');
+      if (!data.amount && !data.merchant) throw new Error('AI tidak dapat membaca informasi dari gambar ini');
       setAiResult(data);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Gagal membaca struk';
@@ -135,13 +196,17 @@ export const AddTransaction: React.FC = () => {
     if (!aiResult.merchant) { setAiError('Merchant tidak terbaca. Edit terlebih dahulu.'); return; }
     if (!aiResult.category) { setAiError('Kategori tidak terbaca. Edit terlebih dahulu.'); return; }
     if (!aiResult.date) { setAiError('Tanggal tidak terbaca. Edit terlebih dahulu.'); return; }
-    if (!aiResult.time) { setAiError('Jam tidak terbaca. Edit terlebih dahulu.'); return; }
 
     setSubmitting(true);
     const ok = await addTransaction({
-      amount: aiResult.amount, merchant: aiResult.merchant, category: aiResult.category,
-      date: aiResult.date, time: normalizeTime(aiResult.time), note: aiResult.note ?? '',
-      source: 'AI', image_url: imageBase64 ?? null,
+      amount: aiResult.amount,
+      merchant: aiResult.merchant,
+      category: aiResult.category,
+      date: aiResult.date,
+      time: normalizeTime(aiResult.time),  // fallback ke jam sekarang jika null
+      note: aiResult.note ?? '',
+      source: 'AI',
+      image_url: imageBase64 ?? null,
     });
     setSubmitting(false);
     if (ok) {
@@ -324,12 +389,58 @@ export const AddTransaction: React.FC = () => {
                   </div>
                   <h3 className="text-[15px] font-semibold mb-1" style={{ color: 'var(--color-on-surface)' }}>Upload Screenshot Struk</h3>
                   <p className="text-[12px] text-center max-w-[220px]" style={{ color: 'var(--color-outline)' }}>
-                    Pilih atau ambil foto struk transaksi kamu
+                    Ketuk untuk pilih gambar dari galeri
                   </p>
                 </>
               )}
-              <input ref={fileInputRef} type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
+              {/* File picker (galeri) */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                accept="image/*"
+                onChange={handleFileChange}
+              />
             </div>
+
+            {/* Tombol Ambil Foto dari Kamera (khusus Android/mobile) */}
+            {!imagePreview && (
+              <div className="flex gap-3">
+                <button
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="flex-1 h-12 rounded-xl text-[13px] font-semibold flex items-center justify-center gap-2 border transition-colors active:scale-95"
+                  style={{
+                    backgroundColor: 'var(--color-surface-container)',
+                    color: 'var(--color-on-surface-variant)',
+                    borderColor: 'var(--color-outline-variant)',
+                  }}
+                >
+                  <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>photo_camera</span>
+                  Ambil Foto
+                </button>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex-1 h-12 rounded-xl text-[13px] font-semibold flex items-center justify-center gap-2 border transition-colors active:scale-95"
+                  style={{
+                    backgroundColor: 'var(--color-surface-container)',
+                    color: 'var(--color-on-surface-variant)',
+                    borderColor: 'var(--color-outline-variant)',
+                  }}
+                >
+                  <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>photo_library</span>
+                  Dari Galeri
+                </button>
+                {/* Camera input — capture="environment" membuka kamera belakang langsung */}
+                <input
+                  ref={cameraInputRef}
+                  type="file"
+                  className="hidden"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleFileChange}
+                />
+              </div>
+            )}
 
             {imagePreview && (
               <button
@@ -363,9 +474,12 @@ export const AddTransaction: React.FC = () => {
             )}
 
             {aiError && (
-              <div className="px-4 py-3 rounded-xl flex items-center gap-2" style={{ backgroundColor: 'var(--color-error-container)', color: 'var(--color-on-error-container)' }}>
-                <span className="material-symbols-outlined text-[18px]">error</span>
-                <p className="text-[12px]">{aiError}</p>
+              <div className="px-4 py-3 rounded-xl space-y-1" style={{ backgroundColor: 'var(--color-error-container)', color: 'var(--color-on-error-container)' }}>
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[18px]">error</span>
+                  <p className="text-[12px] font-medium">Scan Gagal</p>
+                </div>
+                <p className="text-[11px] leading-relaxed opacity-80">{aiError}</p>
               </div>
             )}
 
@@ -378,7 +492,7 @@ export const AddTransaction: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="material-symbols-outlined text-[20px]" style={{ color: 'var(--color-primary)', fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
-                    <h3 className="text-[14px] font-semibold" style={{ color: 'var(--color-on-surface)' }}>Hasil AI</h3>
+                    <h3 className="text-[14px] font-semibold" style={{ color: 'var(--color-on-surface)' }}>Hasil AI Scan</h3>
                   </div>
                   {(() => {
                     const badge = confidenceBadge(aiResult.confidence);
@@ -432,12 +546,14 @@ export const AddTransaction: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-semibold mb-1" style={{ color: 'var(--color-outline)' }}>Jam</label>
+                      <label className="block text-[11px] font-semibold mb-1" style={{ color: 'var(--color-outline)' }}>
+                        Jam {!aiResult.time && <span className="text-[10px] opacity-60">(auto)</span>}
+                      </label>
                       <input
                         type="time"
                         className="w-full h-12 px-3 rounded-lg text-[13px] focus:outline-none focus:ring-2 transition-all"
                         style={fieldStyle}
-                        value={aiResult.time ?? ''}
+                        value={aiResult.time ?? nowTime}
                         onChange={e => setAiResult({ ...aiResult, time: e.target.value })}
                       />
                     </div>
