@@ -31,7 +31,10 @@ export const handler: Handler = async (event) => {
       };
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel(
+      { model: 'gemini-1.5-flash' },
+      { apiVersion: 'v1' }
+    );
 
     // Build compact summary to reduce token usage
     const now = new Date();
