@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTransactions } from '../context/TransactionContext';
 import { format } from 'date-fns';
 import { CATEGORIES } from '../types';
+import { handleNumberInput } from '../utils/format';
 
 // Gunakan URL absolut untuk APK Android, fallback ke relative path untuk dev (Netlify dev proxy)
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || '';
@@ -28,7 +29,8 @@ export const AddTransaction: React.FC = () => {
   // Manual form state
   const today = format(new Date(), 'yyyy-MM-dd');
   const nowTime = format(new Date(), 'HH:mm');
-  const [amount, setAmount] = useState('');
+  const [amountRaw, setAmountRaw] = useState(0);
+  const [amountDisplay, setAmountDisplay] = useState('');
   const [merchant, setMerchant] = useState('');
   const [category, setCategory] = useState('');
   const [date, setDate] = useState(today);
@@ -46,7 +48,7 @@ export const AddTransaction: React.FC = () => {
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const resetManualForm = () => {
-    setAmount(''); setMerchant(''); setCategory('');
+    setAmountRaw(0); setAmountDisplay(''); setMerchant(''); setCategory('');
     setDate(today); setTime(nowTime); setNote('');
   };
 
@@ -63,7 +65,7 @@ export const AddTransaction: React.FC = () => {
 
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || Number(amount) <= 0) { setErrorMsg('Nominal harus diisi dan lebih dari 0'); return; }
+    if (!amountRaw || amountRaw <= 0) { setErrorMsg('Nominal harus diisi dan lebih dari 0'); return; }
     if (!merchant.trim()) { setErrorMsg('Merchant wajib diisi'); return; }
     if (!category) { setErrorMsg('Kategori wajib dipilih'); return; }
     if (!date) { setErrorMsg('Tanggal wajib diisi'); return; }
@@ -72,7 +74,7 @@ export const AddTransaction: React.FC = () => {
     setErrorMsg('');
     setSubmitting(true);
     const ok = await addTransaction({
-      amount: Number(amount), merchant: merchant.trim(), category,
+      amount: amountRaw, merchant: merchant.trim(), category,
       date, time: normalizeTime(time), note: note.trim(), source: 'MANUAL', image_url: null,
     });
     setSubmitting(false);
@@ -299,9 +301,16 @@ export const AddTransaction: React.FC = () => {
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[14px] font-semibold" style={{ color: 'var(--color-on-surface-variant)' }}>Rp</span>
                 <input
-                  type="number" value={amount} onChange={e => setAmount(e.target.value)}
+                  type="text"
+                  inputMode="numeric"
+                  value={amountDisplay}
+                  onChange={e => {
+                    const { raw, display } = handleNumberInput(e.target.value);
+                    setAmountRaw(raw);
+                    setAmountDisplay(display);
+                  }}
                   className="w-full h-14 pl-10 pr-4 rounded-xl text-[16px] focus:outline-none focus:ring-2 transition-all"
-                  style={fieldStyle} placeholder="0" min="1" required
+                  style={fieldStyle} placeholder="0" required
                 />
               </div>
             </div>
@@ -527,11 +536,15 @@ export const AddTransaction: React.FC = () => {
                   <div>
                     <label className="block text-[11px] font-semibold mb-1" style={{ color: 'var(--color-outline)' }}>Nominal</label>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       className="w-full h-12 px-3 rounded-lg text-[14px] focus:outline-none focus:ring-2 transition-all"
                       style={fieldStyle}
-                      value={aiResult.amount ?? ''}
-                      onChange={e => setAiResult({ ...aiResult, amount: Number(e.target.value) })}
+                      value={aiResult.amount !== null ? aiResult.amount.toLocaleString('id-ID') : ''}
+                      onChange={e => {
+                        const { raw } = handleNumberInput(e.target.value);
+                        setAiResult({ ...aiResult, amount: raw });
+                      }}
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-3">

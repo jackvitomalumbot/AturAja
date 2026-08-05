@@ -9,7 +9,7 @@ import { CATEGORY_ICONS, CATEGORY_COLORS } from '../types';
 // Gunakan URL absolut untuk APK Android, fallback ke relative path untuk dev
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || '';
 
-const MONTHLY_BUDGET = 6_500_000;
+const DEFAULT_BUDGET = 6_500_000;
 
 function CategoryIcon({ category, size = 20 }: { category: string; size?: number }) {
   const icon = CATEGORY_ICONS[category] ?? 'category';
@@ -25,6 +25,10 @@ export const Dashboard: React.FC = () => {
   const { transactions, loading } = useTransactions();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [monthlyBudget] = useState<number>(() => {
+    const saved = localStorage.getItem('aturaja_monthly_budget');
+    return saved ? parseInt(saved, 10) : DEFAULT_BUDGET;
+  });
   const [aiInsight, setAiInsight] = useState<AIInsightData | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
@@ -65,8 +69,8 @@ export const Dashboard: React.FC = () => {
     return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
   }, [todayTransactions]);
 
-  const budgetPct = Math.min(100, Math.round((monthTotal / MONTHLY_BUDGET) * 100));
-  const budgetRemaining = MONTHLY_BUDGET - monthTotal;
+  const budgetPct = Math.min(100, Math.round((monthTotal / monthlyBudget) * 100));
+  const budgetRemaining = monthlyBudget - monthTotal;
 
   const fetchInsights = useCallback(async () => {
     if (transactions.length === 0) return;
@@ -229,7 +233,7 @@ export const Dashboard: React.FC = () => {
               Rp{monthTotal.toLocaleString('id-ID')}
             </span>
             <span className="text-[12px]" style={{ color: 'var(--color-outline)' }}>
-              Budget <span className="font-semibold" style={{ color: 'var(--color-on-surface)' }}>Rp{MONTHLY_BUDGET.toLocaleString('id-ID')}</span>
+              Budget <span className="font-semibold" style={{ color: 'var(--color-on-surface)' }}>Rp{monthlyBudget.toLocaleString('id-ID')}</span>
             </span>
           </div>
           <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--color-surface-container-high)' }}>
