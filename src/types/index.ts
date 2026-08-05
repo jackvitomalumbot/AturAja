@@ -2,6 +2,7 @@ export type TransactionSource = 'MANUAL' | 'AI';
 
 export interface Transaction {
   id: string;
+  user_id?: string;
   amount: number;
   merchant: string;
   category: string;

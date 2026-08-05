@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import type { Transaction } from '../types';
-import { transactionService } from '../lib/supabase';
+import { transactionService, supabase } from '../lib/supabase';
 
 interface TransactionContextType {
   transactions: Transaction[];
@@ -25,8 +25,20 @@ export const TransactionProvider: React.FC<{ children: ReactNode }> = ({ childre
     setLoading(false);
   }, []);
 
+  // Refresh transaksi setiap kali user berubah (login/logout)
   useEffect(() => {
-    refreshTransactions();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        // User baru login — muat data miliknya
+        refreshTransactions();
+      } else {
+        // User logout — bersihkan data
+        setTransactions([]);
+        setLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, [refreshTransactions]);
 
   const addTransaction = async (transaction: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>) => {

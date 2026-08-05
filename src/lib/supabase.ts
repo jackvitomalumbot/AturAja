@@ -22,10 +22,19 @@ export const transactionService = {
   },
 
   async addTransaction(transaction: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>): Promise<Transaction | null> {
-    console.log('[Supabase] INSERT payload:', JSON.stringify(transaction));
+    // Ambil user ID dari session yang aktif
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.error('[Supabase] INSERT error: user not authenticated');
+      return null;
+    }
+
+    const payload = { ...transaction, user_id: user.id };
+    console.log('[Supabase] INSERT payload:', JSON.stringify(payload));
+
     const { data, error } = await supabase
       .from('transactions')
-      .insert([transaction])
+      .insert([payload])
       .select()
       .single();
 
