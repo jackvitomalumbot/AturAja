@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTransactions } from '../context/TransactionContext';
+import { useAuth } from '../context/AuthContext';
 import { isToday, isThisWeek, isThisMonth, parseISO } from 'date-fns';
 import type { AIInsightData } from '../types';
 import { CATEGORY_ICONS, CATEGORY_COLORS } from '../types';
@@ -22,6 +23,7 @@ function CategoryIcon({ category, size = 20 }: { category: string; size?: number
 
 export const Dashboard: React.FC = () => {
   const { transactions, loading } = useTransactions();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [aiInsight, setAiInsight] = useState<AIInsightData | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -92,6 +94,11 @@ export const Dashboard: React.FC = () => {
     }
   }, [transactions]);
 
+  const avatarUrl = user?.user_metadata?.avatar_url as string | undefined;
+  const firstName = ((user?.user_metadata?.full_name as string) || user?.email?.split('@')[0] || 'Pengguna').split(' ')[0];
+  const initials = ((user?.user_metadata?.full_name as string) || 'U')
+    .split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--color-background)' }}>
       {/* TopAppBar */}
@@ -100,12 +107,29 @@ export const Dashboard: React.FC = () => {
         style={{ backgroundColor: 'var(--color-surface)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }}
       >
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full overflow-hidden bg-primary-container flex items-center justify-center">
-            <span className="material-symbols-outlined text-on-primary-container text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-              account_circle
-            </span>
+          {/* Profile button */}
+          <button
+            id="btn-profile"
+            onClick={() => navigate('/profile')}
+            className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center transition-all active:scale-90 hover:ring-2 hover:ring-primary/40"
+            style={{ backgroundColor: 'var(--color-primary-container)' }}
+            aria-label="Buka Profil"
+          >
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+            ) : (
+              <span
+                className="text-[13px] font-bold"
+                style={{ color: 'var(--color-on-primary-container)' }}
+              >
+                {initials}
+              </span>
+            )}
+          </button>
+          <div>
+            <p className="text-[11px]" style={{ color: 'var(--color-on-surface-variant)' }}>Halo,</p>
+            <h1 className="text-[16px] font-bold leading-tight" style={{ color: 'var(--color-primary)' }}>{firstName} 👋</h1>
           </div>
-          <h1 className="text-[22px] font-bold text-primary tracking-tight">AturAja</h1>
         </div>
         <button className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container transition-colors active:scale-95">
           <span className="material-symbols-outlined text-on-surface-variant">notifications</span>
