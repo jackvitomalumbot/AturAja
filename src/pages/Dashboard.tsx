@@ -92,12 +92,6 @@ export const Dashboard: React.FC = () => {
     }
   }, [transactions]);
 
-  useEffect(() => {
-    if (!loading && transactions.length > 0) {
-      fetchInsights();
-    }
-  }, [loading, fetchInsights]);
-
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--color-background)' }}>
       {/* TopAppBar */}
